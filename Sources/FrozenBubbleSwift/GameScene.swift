@@ -99,6 +99,8 @@ final class GameScene: SKScene {
     private var idleTime: TimeInterval = 0
     private var rushWarningIssued = false
     private var selectedMenuIndex = 0
+    private var hasStartedGame = false
+    private var pausedRunAvailable = false
     private var penguinFrames: [SKTexture] = []
     private var penguinState: PenguinState = .idle
     private var penguinStateTime: TimeInterval = 0
@@ -263,6 +265,8 @@ final class GameScene: SKScene {
 
     private func startLevel(_ index: Int, resetRunScore: Bool = false) {
         state = .playing
+        hasStartedGame = true
+        pausedRunAvailable = false
         menuLayer.isHidden = true
         applyAudioPreferences()
         soundPlayer.playMusic(.onePlayer)
@@ -840,9 +844,11 @@ final class GameScene: SKScene {
     }
 
     private func showMenu() {
+        if state == .playing, hasStartedGame {
+            pausedRunAvailable = true
+        }
         state = .menu
         pressedKeyCodes.removeAll()
-        movingBubble = nil
         preferences.recordRunScore(runScore)
         menuLayer.isHidden = false
         creditsLabel.isHidden = true
@@ -900,11 +906,16 @@ final class GameScene: SKScene {
     private func activateSelectedMenuItem() {
         switch MenuItem.allCases[selectedMenuIndex] {
         case .resume:
-            runScore = 0
-            lives = startingLives
-            startLevel(preferences.lastReachedLevel, resetRunScore: true)
+            if pausedRunAvailable {
+                resumePausedRun()
+            } else {
+                runScore = 0
+                lives = startingLives
+                startLevel(preferences.lastReachedLevel, resetRunScore: true)
+            }
         case .newGame:
             preferences.resetRun()
+            pausedRunAvailable = false
             startLevel(0, resetRunScore: true)
         case .sound:
             preferences.soundEnabled.toggle()
@@ -919,6 +930,7 @@ final class GameScene: SKScene {
             updateMenuLabels()
         case .colorBlind:
             preferences.colorBlindEnabled.toggle()
+            refreshBubbleTextures()
             updateMenuLabels()
         case .rushMe:
             preferences.rushMeEnabled.toggle()
@@ -928,6 +940,18 @@ final class GameScene: SKScene {
         case .quit:
             NSApplication.shared.terminate(nil)
         }
+    }
+
+    private func resumePausedRun() {
+        state = .playing
+        pausedRunAvailable = false
+        menuLayer.isHidden = true
+        creditsLabel.isHidden = true
+        applyAudioPreferences()
+        soundPlayer.playMusic(.onePlayer)
+        refreshBubbleTextures()
+        updateBubblePreview()
+        updateStatus()
     }
 
     private func updateMenuLabels() {
@@ -941,7 +965,7 @@ final class GameScene: SKScene {
     private func menuTitle(for item: MenuItem) -> String {
         switch item {
         case .resume:
-            return "resume level \(preferences.lastReachedLevel + 1)"
+            return pausedRunAvailable ? "resume game" : "resume level \(preferences.lastReachedLevel + 1)"
         case .newGame:
             return "new game"
         case .sound:
@@ -962,6 +986,28 @@ final class GameScene: SKScene {
     private func applyAudioPreferences() {
         soundPlayer.soundEnabled = preferences.soundEnabled
         soundPlayer.musicEnabled = preferences.musicEnabled
+    }
+
+    private func refreshBubbleTextures() {
+        for column in 0..<columns {
+            for row in 0..<gridRows {
+                guard let bubble = grid[column][row] else { continue }
+                applyBubbleTexture(to: bubble.node, color: bubble.color)
+            }
+        }
+
+        if let movingBubble {
+            applyBubbleTexture(to: movingBubble.node, color: movingBubble.color)
+        }
+
+        updateBubblePreview()
+    }
+
+    private func applyBubbleTexture(to node: SKSpriteNode, color: BubbleColor) {
+        let texture = bubbleTexture(for: color)
+        node.texture = texture
+        node.color = texture == nil ? fallbackColor(for: color) : .clear
+        node.colorBlendFactor = texture == nil ? 1 : 0
     }
 
     private func updateLifeNodes() {
