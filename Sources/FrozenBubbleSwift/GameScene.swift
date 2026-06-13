@@ -728,7 +728,7 @@ final class GameScene: SKScene {
     private func buildHUDLabels() {
         guard hudFontTexture != nil else { return }
 
-        levelLabel = makeHUDLabel(position: CGPoint(x: 198, y: 48), alignment: .center, scale: 0.95)
+        levelLabel = makeHUDLabel(position: CGPoint(x: 246, y: 47), alignment: .center, scale: 0.78)
         scoreLabel = makeHUDLabel(position: CGPoint(x: 26, y: 346), alignment: .left, scale: 0.82)
         bestRunLabel = makeHUDLabel(position: CGPoint(x: 26, y: 322), alignment: .left, scale: 0.82)
         shotsLabel = makeHUDLabel(position: CGPoint(x: 488, y: 346), alignment: .left, scale: 0.8)
